@@ -48,6 +48,7 @@ exclude = ".*"
 
 [tool.ruff]
 line-length = 99
+exclude = ["lib/*"]
 
 [tool.ruff.lint]
 extend-select = [
