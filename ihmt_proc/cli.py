@@ -93,17 +93,6 @@ def _get_parser():
         help='Input T1 (in sec) NIfTI path',
     )
     parser.add_argument(
-        '--ihmtsat',
-        dest='ihmtsat_file',
-        action='store',
-        default='ihMTsat.nii.gz',
-        help=(
-            'Output ihMTsat NIfTI path. '
-            'This will always be created, even if not specified. '
-            'Default: ihMTsat.nii.gz'
-        ),
-    )
-    parser.add_argument(
         'ihmtparx',
         nargs='?',
         help="""ihMT preparation parameters (comma-separated), in this order:
@@ -130,6 +119,29 @@ def _get_parser():
         e.g. 8.3,7,128,4000.0""",
     )
     parser.add_argument(
+        '--b1',
+        type=IsFile,
+        help='Input B1 NIfTI (in absolute units).',
+    )
+    parser.add_argument(
+        '--mask',
+        type=IsFile,
+        help='Input binary mask NIfTI path',
+    )
+
+    outputs = parser.add_argument_group('Outputs')
+    outputs.add_argument(
+        '--ihmtsat',
+        dest='ihmtsat_file',
+        action='store',
+        default='ihMTsat.nii.gz',
+        help=(
+            'Output ihMTsat NIfTI path. '
+            'This will always be created, even if not specified. '
+            'Default: ihMTsat.nii.gz'
+        ),
+    )
+    outputs.add_argument(
         '--mtdsat',
         dest='mtdsat_file',
         action=OptionalFileAction,
@@ -140,7 +152,7 @@ def _get_parser():
             'Providing the flag without a value will use the default filename.'
         ),
     )
-    parser.add_argument(
+    outputs.add_argument(
         '--mtssat',
         dest='mtssat_file',
         action=OptionalFileAction,
@@ -151,7 +163,7 @@ def _get_parser():
             'Providing the flag without a value will use the default filename.'
         ),
     )
-    parser.add_argument(
+    outputs.add_argument(
         '--ihmtsatb1sq',
         dest='ihmtsatb1sq_file',
         action=OptionalFileAction,
@@ -162,7 +174,7 @@ def _get_parser():
             'Providing the flag without a value will use the default filename.'
         ),
     )
-    parser.add_argument(
+    outputs.add_argument(
         '--mtdsatb1sq',
         dest='mtdsatb1sq_file',
         action=OptionalFileAction,
@@ -173,7 +185,7 @@ def _get_parser():
             'Providing the flag without a value will use the default filename.'
         ),
     )
-    parser.add_argument(
+    outputs.add_argument(
         '--mtssatb1sq',
         dest='mtssatb1sq_file',
         action=OptionalFileAction,
@@ -184,26 +196,18 @@ def _get_parser():
             'Providing the flag without a value will use the default filename.'
         ),
     )
-    parser.add_argument(
-        '--b1',
-        type=IsFile,
-        help='Input B1 NIfTI (in absolute units).',
-    )
-    parser.add_argument(
-        '--mask',
-        type=IsFile,
-        help='Input binary mask NIfTI path',
-    )
-    parser.add_argument(
+
+    additional_args = parser.add_argument_group('Additional arguments')
+    additional_args.add_argument(
         '--reference-idx',
         action=SplitCommaAction,
-        default=0,
+        default=np.array([0]),
         help=(
             'Reference indices (starting from 1) in 4D input '
             '(comma-separated integers; default: 1)'
         ),
     )
-    parser.add_argument(
+    additional_args.add_argument(
         '--single-offset-idx',
         action=SplitCommaAction,
         help=(
@@ -211,7 +215,7 @@ def _get_parser():
             '(comma-separated integers; default: 2,4,...,N-1)'
         ),
     )
-    parser.add_argument(
+    additional_args.add_argument(
         '--dual-offset-idx',
         action=SplitCommaAction,
         help=(
@@ -219,13 +223,13 @@ def _get_parser():
             '(comma-separated integers; default: 3,5,...,N)'
         ),
     )
-    parser.add_argument(
+    additional_args.add_argument(
         '--xtol',
         type=float,
         default=1e-6,
         help='x tolerance for root finding (default: 1e-6)',
     )
-    parser.add_argument(
+    additional_args.add_argument(
         '--nworkers',
         type=int,
         default=1,
@@ -238,21 +242,21 @@ def main(
     *,
     ihmt,
     t1,
-    ihmtsat_file,
     ihmtparx,
     tflparx,
-    mtdsat_file,
-    mtssat_file,
-    ihmtsatb1sq_file,
-    mtdsatb1sq_file,
-    mtssatb1sq_file,
-    b1,
-    mask,
-    reference_idx,
-    single_offset_idx,
-    dual_offset_idx,
-    xtol,
-    nworkers,
+    b1=None,
+    mask=None,
+    ihmtsat_file='ihMTsat.nii.gz',
+    mtdsat_file=None,
+    mtssat_file=None,
+    ihmtsatb1sq_file=None,
+    mtdsatb1sq_file=None,
+    mtssatb1sq_file=None,
+    reference_idx=None,
+    single_offset_idx=None,
+    dual_offset_idx=None,
+    xtol=1e-6,
+    nworkers=1,
 ):
     nworkers = nworkers if nworkers <= get_cpu_count() else get_cpu_count()
 
@@ -379,6 +383,9 @@ def main(
 
     #### Sorting and/or exclude with indices -R/-S/-D
     # Default R=1; S=2,4,...N-1; D=3,5,...,N
+    if reference_idx is None:
+        reference_idx = np.array([0])
+
     if single_offset_idx is None:
         single_offset_idx = np.arange(1, ihmt_data.shape[3], 2)
 
